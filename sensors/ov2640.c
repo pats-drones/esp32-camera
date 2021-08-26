@@ -113,8 +113,10 @@ static int set_pixformat(sensor_t *sensor, pixformat_t pixformat)
     sensor->pixformat = pixformat;
     switch (pixformat) {
     case PIXFORMAT_RGB565:
-    case PIXFORMAT_RGB888:
         WRITE_REGS_OR_RETURN(ov2640_settings_rgb565);
+        break;
+    case PIXFORMAT_RGB888:
+        WRITE_REGS_OR_RETURN(ov2640_settings_rgb888);
         break;
     case PIXFORMAT_YUV422:
     case PIXFORMAT_GRAYSCALE:
