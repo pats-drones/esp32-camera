@@ -766,6 +766,10 @@ JRESULT jd_prepare (
 	void* dev			/* I/O device identifier for the session */
 )
 {
+    printf("c\n");
+    printf("c\n");
+    printf("c\n");
+    printf("c\n");
 	BYTE *seg, b;
 	WORD marker;
 	DWORD ofs;
@@ -774,6 +778,8 @@ JRESULT jd_prepare (
 
 
 	if (!pool) return JDR_PAR;
+
+    printf("d\n");
 
 	jd->pool = pool;		/* Work memroy */
 	jd->sz_pool = sz_pool;	/* Size of given work memory */
@@ -796,6 +802,8 @@ JRESULT jd_prepare (
 	if (jd->infunc(jd, seg, 2) != 2) return JDR_INP;/* Check SOI marker */
 	if (LDB_WORD(seg) != 0xFFD8) return JDR_FMT1;	/* Err: SOI is not detected */
 	ofs = 2;
+
+    printf("e\n");
 
 	for (;;) {
 		/* Get a JPEG marker */
@@ -935,19 +943,23 @@ JRESULT jd_decomp (
 	BYTE scale								/* Output de-scaling factor (0 to 3) */
 )
 {
+	printf("1\n");
 	UINT x, y, mx, my;
 	WORD rst, rsc;
 	JRESULT rc;
 
 
+	printf("2\n");
 	if (scale > (JD_USE_SCALE ? 3 : 0)) return JDR_PAR;
 	jd->scale = scale;
 
+	printf("3\n");
 	mx = jd->msx * 8; my = jd->msy * 8;			/* Size of the MCU (pixel) */
 
 	jd->dcv[2] = jd->dcv[1] = jd->dcv[0] = 0;	/* Initialize DC values */
 	rst = rsc = 0;
 
+	printf("4\n");
 	rc = JDR_OK;
 	for (y = 0; y < jd->height; y += my) {		/* Vertical loop of MCUs */
 		for (x = 0; x < jd->width; x += mx) {	/* Horizontal loop of MCUs */
@@ -960,9 +972,12 @@ JRESULT jd_decomp (
 			if (rc != JDR_OK) return rc;
 			rc = mcu_output(jd, outfunc, x, y);	/* Output the MCU (color space conversion, scaling and output) */
 			if (rc != JDR_OK) return rc;
+
+			printf("5\n");
 		}
 	}
 
+	printf("6\n");
 	return rc;
 }
 #endif//SUPPORT_JPEG

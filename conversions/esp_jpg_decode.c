@@ -103,6 +103,7 @@ esp_err_t esp_jpg_decode(size_t len, jpg_scale_t scale, jpg_reader_cb reader, jp
     jpeg.index = 0;
 
     JRESULT jres = jd_prepare(&decoder, _jpg_read, work, 3100, &jpeg);
+
     if(jres != JDR_OK){
         ESP_LOGE(TAG, "JPG Header Parse Failed! %s", jd_errors[jres]);
         return ESP_FAIL;
@@ -111,22 +112,18 @@ esp_err_t esp_jpg_decode(size_t len, jpg_scale_t scale, jpg_reader_cb reader, jp
     uint16_t output_width = decoder.width / (1 << (uint8_t)(jpeg.scale));
     uint16_t output_height = decoder.height / (1 << (uint8_t)(jpeg.scale));
 
-    //output start
     writer(arg, 0, 0, output_width, output_height, NULL);
-    //output write
     jres = jd_decomp(&decoder, _jpg_write, (uint8_t)jpeg.scale);
-    //output end
     writer(arg, output_width, output_height, output_width, output_height, NULL);
 
     if (jres != JDR_OK) {
         ESP_LOGE(TAG, "JPG Decompression Failed! %s", jd_errors[jres]);
         return ESP_FAIL;
     }
-    //check if all data has been consumed.
+
     if (len && jpeg.index < len) {
         _jpg_read(&decoder, NULL, len - jpeg.index);
     }
 
     return ESP_OK;
 }
-

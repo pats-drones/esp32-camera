@@ -19,6 +19,8 @@
 #include "yuv.h"
 #include "sdkconfig.h"
 #include "esp_jpg_decode.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 #include "esp_system.h"
 #if ESP_IDF_VERSION_MAJOR >= 4 // IDF 4+
@@ -28,7 +30,7 @@
 #include "esp32s2/spiram.h"
 #elif CONFIG_IDF_TARGET_ESP32S3
 #include "esp32s3/spiram.h"
-#else 
+#else
 #error Target CONFIG_IDF_TARGET is not supported
 #endif
 #else // ESP32 Before IDF 4.0
@@ -44,6 +46,9 @@ static const char* TAG = "to_bmp";
 #endif
 
 static const int BMP_HEADER_LEN = 54;
+
+uint32_t _rgb_integrity_diff_0 = 0;
+uint32_t _rgb_integrity_diff_1 = 0;
 
 typedef struct {
     uint32_t filesize;
@@ -63,11 +68,11 @@ typedef struct {
 } bmp_header_t;
 
 typedef struct {
-        uint16_t width;
-        uint16_t height;
-        uint16_t data_offset;
-        const uint8_t *input;
-        uint8_t *output;
+    uint16_t width;
+    uint16_t height;
+    uint16_t data_offset;
+    const uint8_t *input;
+    uint8_t *output;
 } rgb_jpg_decoder;
 
 static void *_malloc(size_t size)
@@ -75,19 +80,26 @@ static void *_malloc(size_t size)
     return heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 }
 
+#define integrity_check_buffer_length 120
+uint8_t integrity_check_buffer_index = 0;
+uint8_t integrity_check_buffer[3][integrity_check_buffer_length] = {0};
+uint32_t pixels = 0;
+uint32_t count = 0;
+
 //output buffer and image width
 static bool _rgb_write(void * arg, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t *data)
 {
     rgb_jpg_decoder * jpeg = (rgb_jpg_decoder *)arg;
-    if(!data){
-        if(x == 0 && y == 0){
+
+    if(!data) {
+        if(x == 0 && y == 0) {
             //write start
             jpeg->width = w;
             jpeg->height = h;
             //if output is null, this is BMP
-            if(!jpeg->output){
+            if(!jpeg->output) {
                 jpeg->output = (uint8_t *)_malloc((w*h*3)+jpeg->data_offset);
-                if(!jpeg->output){
+                if(!jpeg->output) {
                     return false;
                 }
             }
@@ -107,30 +119,99 @@ static bool _rgb_write(void * arg, uint16_t x, uint16_t y, uint16_t w, uint16_t 
 
     w = w * 3;
 
+    // printf("PIXELS\n");
+    int subsample = 300;
+    // int count = 0;
     for(iy=t; iy<b; iy+=jw) {
         o = out+iy+l;
         for(ix=0; ix<w; ix+= 3) {
-            o[ix] = data[ix+2];
-            o[ix+1] = data[ix+1];
-            o[ix+2] = data[ix];
+            // o[ix] = data[ix+2];
+            // o[ix+1] = data[ix+1];
+            // o[ix+2] = data[ix];
+            if (pixels % subsample == 0 && (pixels / 2560) % subsample == 0) {
+                vTaskDelay(1);
+            }
+
+            // if (pixels > (2560*1920 - integrity_check_buffer_length * 2)) {
+            if (count % 10001 == 0) {
+                integrity_check_buffer[integrity_check_buffer_index][(pixels+0) % integrity_check_buffer_length] = data[ix+0];
+                integrity_check_buffer[integrity_check_buffer_index][(pixels+1) % integrity_check_buffer_length] = data[ix+1];
+                integrity_check_buffer[integrity_check_buffer_index][(pixels+2) % integrity_check_buffer_length] = data[ix+2];
+            }
+            count++;
+            pixels+=3;
         }
         data+=w;
     }
+    // printf("PIXELS %d %d\n", pixels, count);
+
     return true;
 }
+
+uint32_t _rgb_integrity_buffer_difference(int index0, int index1)
+{
+    uint32_t squared_diff = 0;
+    for (int i = 0; i < integrity_check_buffer_length; i++) {
+        // for (int j = 0; j < 3; j++) {
+        // printf("%03d, %03d\n", integrity_check_buffer[index0][i], integrity_check_buffer[index1][i]);
+
+        int diff = (int16_t)integrity_check_buffer[index0][i] - (int16_t)integrity_check_buffer[index1][i];
+        squared_diff += (diff * diff);
+        // }
+    }
+
+    printf("difference %d\n", squared_diff / integrity_check_buffer_length );
+    return squared_diff / integrity_check_buffer_length ;
+}
+
+void _rgb_increment_integrity_buffer()
+{
+    integrity_check_buffer_index++;
+    integrity_check_buffer_index %= 3;
+    pixels = 0;
+    count = 0;
+
+    printf("integrity buffer %d\n", integrity_check_buffer_index);
+}
+
+void _rgb_clear_integrity_buffer() {
+    for (int i = 0; i < integrity_check_buffer_length; i++)
+        integrity_check_buffer[integrity_check_buffer_index][i] = rand() % 256;
+}
+
+bool _rgb_integrity_intact()
+{
+    int threshold = 100;
+    bool success = true;
+    _rgb_integrity_diff_0 = _rgb_integrity_buffer_difference(0,1);
+    _rgb_integrity_diff_1 = _rgb_integrity_buffer_difference(1,2);
+
+    if (_rgb_integrity_diff_0 > threshold)
+        success = false;
+    if (_rgb_integrity_diff_1 > threshold)
+        success = false;
+
+    return success;
+}
+
+static bool _rgb_write_dummy(void * arg, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t *data)
+{
+    return true;
+}
+
 
 static bool _rgb565_write(void * arg, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t *data)
 {
     rgb_jpg_decoder * jpeg = (rgb_jpg_decoder *)arg;
-    if(!data){
-        if(x == 0 && y == 0){
+    if(!data) {
+        if(x == 0 && y == 0) {
             //write start
             jpeg->width = w;
             jpeg->height = h;
             //if output is null, this is BMP
-            if(!jpeg->output){
+            if(!jpeg->output) {
                 jpeg->output = (uint8_t *)_malloc((w*h*3)+jpeg->data_offset);
-                if(!jpeg->output){
+                if(!jpeg->output) {
                     return false;
                 }
             }
@@ -186,7 +267,22 @@ static bool jpg2rgb888(const uint8_t *src, size_t src_len, uint8_t * out, jpg_sc
     jpeg.output = out;
     jpeg.data_offset = 0;
 
-    if(esp_jpg_decode(src_len, scale, _jpg_read, _rgb_write, (void*)&jpeg) != ESP_OK){
+    if(esp_jpg_decode(src_len, scale, _jpg_read, _rgb_write, (void*)&jpeg) != ESP_OK) {
+        return false;
+    }
+    return true;
+}
+
+bool jpgcheck(const uint8_t *src, size_t src_len, uint8_t * out, jpg_scale_t scale)
+{
+    rgb_jpg_decoder jpeg;
+    jpeg.width = 0;
+    jpeg.height = 0;
+    jpeg.input = src;
+    jpeg.output = out;
+    jpeg.data_offset = 0;
+
+    if(esp_jpg_decode(src_len, scale, _jpg_read, _rgb_write_dummy, (void*)&jpeg) != ESP_OK) {
         return false;
     }
     return true;
@@ -201,7 +297,7 @@ bool jpg2rgb565(const uint8_t *src, size_t src_len, uint8_t * out, jpg_scale_t s
     jpeg.output = out;
     jpeg.data_offset = 0;
 
-    if(esp_jpg_decode(src_len, scale, _jpg_read, _rgb565_write, (void*)&jpeg) != ESP_OK){
+    if(esp_jpg_decode(src_len, scale, _jpg_read, _rgb565_write, (void*)&jpeg) != ESP_OK) {
         return false;
     }
     return true;
@@ -209,7 +305,6 @@ bool jpg2rgb565(const uint8_t *src, size_t src_len, uint8_t * out, jpg_scale_t s
 
 bool jpg2bmp(const uint8_t *src, size_t src_len, uint8_t ** out, size_t * out_len)
 {
-
     rgb_jpg_decoder jpeg;
     jpeg.width = 0;
     jpeg.height = 0;
@@ -217,10 +312,11 @@ bool jpg2bmp(const uint8_t *src, size_t src_len, uint8_t ** out, size_t * out_le
     jpeg.output = NULL;
     jpeg.data_offset = BMP_HEADER_LEN;
 
-    if(esp_jpg_decode(src_len, JPG_SCALE_NONE, _jpg_read, _rgb_write, (void*)&jpeg) != ESP_OK){
+    if(esp_jpg_decode(src_len, JPG_SCALE_NONE, _jpg_read, _rgb_write, (void*)&jpeg) != ESP_OK) {
         return false;
     }
 
+    return true;
     size_t output_size = jpeg.width*jpeg.height*3;
 
     jpeg.output[0] = 'B';
@@ -297,12 +393,14 @@ bool fmt2rgb888(const uint8_t *src_buf, size_t src_len, pixformat_t format, uint
             *rgb_buf++ = r;
         }
     }
+
     return true;
 }
 
 bool fmt2bmp(uint8_t *src, size_t src_len, uint16_t width, uint16_t height, pixformat_t format, uint8_t ** out, size_t * out_len)
 {
     if(format == PIXFORMAT_JPEG) {
+
         return jpg2bmp(src, src_len, out, out_len);
     }
 
@@ -337,7 +435,6 @@ bool fmt2bmp(uint8_t *src, size_t src_len, uint16_t width, uint16_t height, pixf
 
     uint8_t * rgb_buf = out_buf + BMP_HEADER_LEN;
     uint8_t * src_buf = src;
-
 
     //convert data to RGB888
     if(format == PIXFORMAT_RGB888) {
@@ -382,12 +479,17 @@ bool fmt2bmp(uint8_t *src, size_t src_len, uint16_t width, uint16_t height, pixf
             *rgb_buf++ = r;
         }
     }
+
     *out = out_buf;
     *out_len = out_size;
+
     return true;
 }
 
 bool frame2bmp(camera_fb_t * fb, uint8_t ** out, size_t * out_len)
 {
-    return fmt2bmp(fb->buf, fb->len, fb->width, fb->height, fb->format, out, out_len);
+    _rgb_clear_integrity_buffer();
+    bool success = fmt2bmp(fb->buf, fb->len, fb->width, fb->height, fb->format, out, out_len);
+    _rgb_increment_integrity_buffer();
+    return success;
 }

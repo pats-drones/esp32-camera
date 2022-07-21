@@ -317,6 +317,7 @@ void esp_camera_fb_return(camera_fb_t *fb)
         return;
     }
     cam_give(fb);
+    // s_state = NULL;
 }
 
 sensor_t *esp_camera_sensor_get()

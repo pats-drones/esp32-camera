@@ -24,6 +24,13 @@ extern "C" {
 #include "esp_camera.h"
 #include "esp_jpg_decode.h"
 
+
+void _rgb_increment_integrity_buffer();
+bool _rgb_integrity_intact();
+void _rgb_clear_integrity_buffer();
+extern uint32_t _rgb_integrity_diff_0;
+extern uint32_t _rgb_integrity_diff_1;
+
 typedef size_t (* jpg_out_cb)(void * arg, size_t index, const void* data, size_t len);
 
 /**
@@ -122,6 +129,9 @@ bool frame2bmp(camera_fb_t * fb, uint8_t ** out, size_t * out_len);
 bool fmt2rgb888(const uint8_t *src_buf, size_t src_len, pixformat_t format, uint8_t * rgb_buf);
 
 bool jpg2rgb565(const uint8_t *src, size_t src_len, uint8_t * out, jpg_scale_t scale);
+
+bool jpgcheck(const uint8_t *src, size_t src_len, uint8_t * out, jpg_scale_t scale);
+
 
 #ifdef __cplusplus
 }

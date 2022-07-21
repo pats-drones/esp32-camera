@@ -26,7 +26,7 @@ static const char *TAG = "ov5640";
 
 //#define REG_DEBUG_ON
 
-static int read_reg(uint8_t slv_addr, const uint16_t reg){
+static int read_reg(uint8_t slv_addr, const uint16_t reg) {
     int ret = SCCB_Read16(slv_addr, reg);
 #ifdef REG_DEBUG_ON
     if (ret < 0) {
@@ -36,11 +36,11 @@ static int read_reg(uint8_t slv_addr, const uint16_t reg){
     return ret;
 }
 
-static int check_reg_mask(uint8_t slv_addr, uint16_t reg, uint8_t mask){
+static int check_reg_mask(uint8_t slv_addr, uint16_t reg, uint8_t mask) {
     return (read_reg(slv_addr, reg) & mask) == mask;
 }
 
-static int read_reg16(uint8_t slv_addr, const uint16_t reg){
+static int read_reg16(uint8_t slv_addr, const uint16_t reg) {
     int ret = 0, ret2 = 0;
     ret = read_reg(slv_addr, reg);
     if (ret >= 0) {
@@ -105,7 +105,7 @@ static int read_reg16(uint8_t slv_addr, const uint16_t reg){
 ////    dump_range(sensor, "AFC control", 0x6000, 0x603F);
 //}
 
-static int write_reg(uint8_t slv_addr, const uint16_t reg, uint8_t value){
+static int write_reg(uint8_t slv_addr, const uint16_t reg, uint8_t value) {
     int ret = 0;
 #ifndef REG_DEBUG_ON
     ret = SCCB_Write16(slv_addr, reg, value);
@@ -201,13 +201,13 @@ static int calc_sysclk(int xclk, bool pll_bypass, int pll_multiplier, int pll_sy
     return SYSCLK;
 }
 
-static int set_pll(sensor_t *sensor, bool bypass, uint8_t multiplier, uint8_t sys_div, uint8_t pre_div, bool root_2x, uint8_t pclk_root_div, bool pclk_manual, uint8_t pclk_div){
+static int set_pll(sensor_t *sensor, bool bypass, uint8_t multiplier, uint8_t sys_div, uint8_t pre_div, bool root_2x, uint8_t pclk_root_div, bool pclk_manual, uint8_t pclk_div) {
     int ret = 0;
-    if(multiplier > 252 || multiplier < 4 || sys_div > 15 || pre_div > 8 || pclk_div > 31 || pclk_root_div > 3){
+    if(multiplier > 252 || multiplier < 4 || sys_div > 15 || pre_div > 8 || pclk_div > 31 || pclk_root_div > 3) {
         ESP_LOGE(TAG, "Invalid arguments");
         return -1;
     }
-    if(multiplier > 127){
+    if(multiplier > 127) {
         multiplier &= 0xFE;//only even integers above 127
     }
     ESP_LOGI(TAG, "Set PLL: bypass: %u, multiplier: %u, sys_div: %u, pre_div: %u, root_2x: %u, pclk_root_div: %u, pclk_manual: %u, pclk_div: %u", bypass, multiplier, sys_div, pre_div, root_2x, pclk_root_div, pclk_manual, pclk_div);
@@ -239,7 +239,7 @@ static int set_pll(sensor_t *sensor, bool bypass, uint8_t multiplier, uint8_t sy
     if (ret == 0) {
         ret = write_reg(sensor->slv_addr, 0x3103, 0x13);// system clock from pll, bit[1]
     }
-    if(ret){
+    if(ret) {
         ESP_LOGE(TAG, "set_sensor_pll FAILED!");
     }
     return ret;
@@ -254,7 +254,7 @@ static int reset(sensor_t *sensor)
     int ret = 0;
     // Software Reset: clear all registers and reset them to their default values
     ret = write_reg(sensor->slv_addr, SYSTEM_CTROL0, 0x82);
-    if(ret){
+    if(ret) {
         ESP_LOGE(TAG, "Software Reset FAILED!");
         return ret;
     }
@@ -344,38 +344,321 @@ static int set_image_options(sensor_t *sensor)
     }
 
     switch (reg4514_test) {
-        //no binning
-        case 0: reg4514 = 0x88; break;//normal
-        case 1: reg4514 = 0x00; break;//v-flip
-        case 2: reg4514 = 0xbb; break;//h-mirror
-        case 3: reg4514 = 0x00; break;//v-flip+h-mirror
-        //binning
-        case 4: reg4514 = 0xaa; break;//normal
-        case 5: reg4514 = 0xbb; break;//v-flip
-        case 6: reg4514 = 0xbb; break;//h-mirror
-        case 7: reg4514 = 0xaa; break;//v-flip+h-mirror
+    //no binning
+    case 0: reg4514 = 0x88; break;//normal
+    case 1: reg4514 = 0x00; break;//v-flip
+    case 2: reg4514 = 0xbb; break;//h-mirror
+    case 3: reg4514 = 0x00; break;//v-flip+h-mirror
+    //binning
+    case 4: reg4514 = 0xaa; break;//normal
+    case 5: reg4514 = 0xbb; break;//v-flip
+    case 6: reg4514 = 0xbb; break;//h-mirror
+    case 7: reg4514 = 0xaa; break;//v-flip+h-mirror
     }
 
     if(write_reg(sensor->slv_addr, TIMING_TC_REG20, reg20)
-        || write_reg(sensor->slv_addr, TIMING_TC_REG21, reg21)
-        || write_reg(sensor->slv_addr, 0x4514, reg4514)){
+            || write_reg(sensor->slv_addr, TIMING_TC_REG21, reg21)
+            || write_reg(sensor->slv_addr, 0x4514, reg4514)) {
         ESP_LOGE(TAG, "Setting Image Options Failed");
         return -1;
     }
 
     if (!sensor->status.binning) {
         ret  = write_reg(sensor->slv_addr, 0x4520, 0x10)
-            || write_reg(sensor->slv_addr, X_INCREMENT, 0x11)//odd:1, even: 1
-            || write_reg(sensor->slv_addr, Y_INCREMENT, 0x11);//odd:1, even: 1
+               || write_reg(sensor->slv_addr, X_INCREMENT, 0x11)//odd:1, even: 1
+               || write_reg(sensor->slv_addr, Y_INCREMENT, 0x11);//odd:1, even: 1
     } else {
         ret  = write_reg(sensor->slv_addr, 0x4520, 0x0b)
-            || write_reg(sensor->slv_addr, X_INCREMENT, 0x31)//odd:3, even: 1
-            || write_reg(sensor->slv_addr, Y_INCREMENT, 0x31);//odd:3, even: 1
+               || write_reg(sensor->slv_addr, X_INCREMENT, 0x31)//odd:3, even: 1
+               || write_reg(sensor->slv_addr, Y_INCREMENT, 0x31);//odd:3, even: 1
     }
 
     ESP_LOGD(TAG, "Set Image Options: Compression: %u, Binning: %u, V-Flip: %u, H-Mirror: %u, Reg-4514: 0x%02x",
-        sensor->pixformat == PIXFORMAT_JPEG, sensor->status.binning, sensor->status.vflip, sensor->status.hmirror, reg4514);
+             sensor->pixformat == PIXFORMAT_JPEG, sensor->status.binning, sensor->status.vflip, sensor->status.hmirror, reg4514);
     return ret;
+}
+#define OV5640_CMD_MAIN					0x3022
+#define OV5640_CMD_ACK					0x3023
+#define OV5640_CMD_FW_STATUS				0x3029
+static int ov5640_af_fw_status(sensor_t *sensor)
+{
+    uint8_t af_st = 0;
+    af_st = read_reg(sensor->slv_addr, OV5640_CMD_FW_STATUS);
+    return (int)af_st;
+}
+
+static int ov5640_af_release(sensor_t *sensor)
+{
+    int ret = 0;
+    ret = write_reg(sensor->slv_addr, OV5640_CMD_ACK, 0x01);
+    if (ret)
+        return ret;
+    ret = write_reg(sensor->slv_addr, OV5640_CMD_MAIN, 0x08);
+    if (ret)
+        return ret;
+    ov5640_af_fw_status(sensor);
+    return ret;
+}
+
+static int ov5640_af_ack(sensor_t *sensor, int num_trys)
+{
+    int ret = 0;
+    uint8_t af_ack = 0;
+    int i;
+    for (i = 0; i < num_trys; i++) {
+        af_ack = read_reg(sensor->slv_addr, OV5640_CMD_ACK);
+        if (af_ack == 0)
+            break;
+        vTaskDelay(50/portTICK_PERIOD_MS);
+    }
+    if (af_ack != 0) {
+        ESP_LOGW(TAG, "af ack failed\n");
+        return OV5640_AF_FAIL;
+    }
+    return ret;
+}
+
+#define AF_SET_VCM_STEP 0x1a
+
+#define AF_CMD_MAIN_REG                     0x3022  // main command, W
+#define AF_CMD_ACK_REG                      0x3023  // ACK of command, R/W
+#define AF_CMD_PARA0_REG                    0x3024  // Parameter: Byte 0, R/W
+#define AF_CMD_PARA1_REG                    0x3025  // Parameter: Byte 1, R/W
+#define AF_CMD_PARA2_REG                    0x3026  // Parameter: Byte 2, R/W
+#define AF_CMD_PARA3_REG                    0x3027  // Parameter: Byte 3, R/W
+#define AF_CMD_PARA4_REG                    0x3028  // Parameter: Byte 4, R/W
+#define AF_FW_STATUS_REG                    0x3029  // Status of focus, R
+
+static int ov5640_af_set_vcm_step(sensor_t *sensor, uint8_t step)
+{
+    int retval = 0;
+    retval |= write_reg(sensor->slv_addr, AF_CMD_PARA3_REG, 0x0);
+    retval |= write_reg(sensor->slv_addr, AF_CMD_PARA4_REG, step);
+    retval |= write_reg(sensor->slv_addr, AF_CMD_ACK_REG, 0x01);
+    retval |= write_reg(sensor->slv_addr, AF_CMD_MAIN_REG, AF_SET_VCM_STEP);
+
+    retval |= ov5640_af_ack(sensor, 5);
+    if (retval) {
+        ESP_LOGW(TAG, "set ov5640_af_set_vcm_step failed\n");
+        return OV5640_AF_FAIL;
+    }
+    int af_st = ov5640_af_fw_status(sensor);
+    ESP_LOGW(TAG, "%d\n", af_st);
+
+    // if (af_st != 0x10) {
+    //     ESP_LOGW(TAG, "focus pending\n");
+    //     ret = OV5640_AF_PENDING;
+    // }
+    return retval;
+}
+
+static int ov5640_af_start(sensor_t *sensor, int num_trys)
+{
+
+    ESP_LOGW(TAG, "ov5640_af_reinit\n");
+
+    write_reg(sensor->slv_addr, OV5640_CMD_ACK, 0x01);
+    write_reg(sensor->slv_addr, OV5640_CMD_MAIN, 0x12);
+    int ret = ov5640_af_ack(sensor, num_trys);
+    if (ret) {
+        ESP_LOGW(TAG, "set af1 failed\n");
+        return OV5640_AF_FAIL;
+    }
+
+
+    write_reg(sensor->slv_addr, OV5640_CMD_ACK, 0x01);
+    write_reg(sensor->slv_addr, OV5640_CMD_MAIN, 0x80);
+    ret = ov5640_af_ack(sensor, num_trys);
+    if (ret) {
+        ESP_LOGW(TAG, "set af2 failed\n");
+        return OV5640_AF_FAIL;
+    }
+
+    write_reg(sensor->slv_addr, OV5640_CMD_ACK, 0x01);
+    // write_reg(sensor->slv_addr, OV5640_CMD_MAIN, 0x04);
+    write_reg(sensor->slv_addr, OV5640_CMD_MAIN, 0x03 );
+    ret = ov5640_af_ack(sensor, num_trys);
+    if (ret) {
+        ESP_LOGW(TAG, "set af3 failed\n");
+        return OV5640_AF_FAIL;
+    }
+
+
+    return OV5640_AF_SUCCESS;
+}
+
+static int ov5640_af_status(sensor_t *sensor, int num_trys)
+{
+    int ret = OV5640_AF_SUCCESS;
+    // struct ov5640 *ov5640 = to_ov5640(client);
+    int af_st = 0;
+    uint8_t af_zone0, af_zone1, af_zone2, af_zone3, af_zone4;
+    // if (ov5640->focus_mode == V4L2_AUTO_FOCUS_RANGE_AUTO)
+    {
+        /* Check if Focused */
+        af_st = ov5640_af_fw_status(sensor);
+        ESP_LOGW(TAG, "%d\n", af_st);
+
+        if (af_st != 0x10) {
+            ESP_LOGW(TAG, "focus pending\n");
+            ret = OV5640_AF_PENDING;
+            goto out;
+        }
+        /* Check if Zones Focused */
+        write_reg(sensor->slv_addr, OV5640_CMD_ACK, 0x01);
+        write_reg(sensor->slv_addr, OV5640_CMD_MAIN, 0x07);
+        ret = ov5640_af_ack(sensor, num_trys);
+        if (ret) {
+            ESP_LOGW(TAG, "zones ack failed\n");
+            ret = OV5640_AF_FAIL;
+            goto out;
+        }
+        af_zone0 = read_reg(sensor->slv_addr, 0x3024);
+        af_zone1 = read_reg(sensor->slv_addr, 0x3025);
+        af_zone2 = read_reg(sensor->slv_addr, 0x3026);
+        af_zone3 = read_reg(sensor->slv_addr, 0x3027);
+        af_zone4 = read_reg(sensor->slv_addr, 0x3028);
+        if ((af_zone0 != 0) && (af_zone1 != 0) && (af_zone2 != 0)
+                && (af_zone3 != 0) && (af_zone4 != 0)) {
+            ESP_LOGW(TAG, "zones failed\n");
+            ret = OV5640_AF_FAIL;
+            ESP_LOGW(TAG,"zones failed");
+            goto out;
+        }
+    }
+out:
+    return ret;
+}
+#define SYSTEM_RESET_00     0x3000
+#define S_IDLE     0x70
+static int set_afw(sensor_t *sensor, bool enable)
+{
+
+    static int first = 1;
+    static uint8_t focus = 0;
+    if (!first) {
+        ov5640_af_set_vcm_step(sensor, focus);
+        focus += 10;
+        return 0;
+    }
+    first = 0;
+
+
+    ov5640_af_release(sensor);
+
+
+    sensor_t *s = sensor;
+    const struct reg_value * firmware_regs;
+    firmware_regs = ov5640_setting_init_embedded_firmware;
+    for (int i = 0; i < sizeof(ov5640_setting_init_embedded_firmware)/sizeof(ov5640_setting_init_embedded_firmware[0]); ++i, ++firmware_regs)
+    {
+//ov5642_write_reg(firmware_regs->u16RegAddr,firmware_regs->u8Val);
+        // ESP_LOGI(TAG, "reg: %d", i);
+
+        s->set_reg(s,firmware_regs->reg,0xff,firmware_regs->val);
+    }
+
+    int af_st = ov5640_af_fw_status(sensor);
+    ESP_LOGW(TAG, "%d\n", af_st);
+
+    if (af_st != S_IDLE) {
+        ESP_LOGW(TAG, "init pending\n");
+        // ret = OV5640_AF_PENDING;
+    }
+
+
+    // // set autofocus preview framerae
+    // s->set_reg(s,0x3035,0x11);
+    // s->set_reg(s,0x3036,0x69);
+
+
+
+    // s->set_reg(s,0x3000,0x60,0x0);
+    // s->set_reg(s,0x3004,0x60,0x60);
+    // s->set_reg(s,0x3001,0x40,0x0);
+    // s->set_reg(s,0x3005,0x40,0x40);
+
+    // int ret;
+
+    // ret |= cambus_writeb2(&sensor->bus, sensor->slv_addr, SYSTEM_RESET_00, 0x20); // force mcu reset
+
+    // // Write firmware
+    // uint16_t fw_addr = __REV16(MCU_FIRMWARE_BASE);
+    // ret |= cambus_write_bytes(&sensor->bus, sensor->slv_addr, (uint8_t *) &fw_addr, 2, CAMBUS_XFER_SUSPEND);
+    // ret |= cambus_write_bytes(&sensor->bus, sensor->slv_addr, (uint8_t *) af_firmware_regs, sizeof(af_firmware_regs), CAMBUS_XFER_NO_FLAGS);
+
+    // for (int i = 0; af_firmware_command_regs[i][0]; i++) {
+    //     ret |= cambus_writeb2(&sensor->bus, sensor->slv_addr, (af_firmware_command_regs[i][0] << 8) | (af_firmware_command_regs[i][1] << 0), af_firmware_command_regs[i][2]);
+    // }
+
+    // ret |= cambus_writeb2(&sensor->bus, sensor->slv_addr, SYSTEM_RESET_00, 0x00); // release mcu reset
+    /*
+    ESP_LOGW(TAG, "A");
+
+    // write_reg(sensor->slv_addr, 0x3005, (enable << 6));
+    int ret = 0;
+    uint8_t reg;
+    ret = ov5640_af_release(sensor);
+    if (ret)
+        return ret;
+
+    ESP_LOGW(TAG, "B");
+    //  move VCM all way out
+    reg = read_reg(sensor->slv_addr, 0x3603);
+    if (ret)
+        return ret;
+
+    ESP_LOGW(TAG, "C");
+    reg &= ~(0x3f);
+    ret = write_reg(sensor->slv_addr, 0x3603, reg);
+    if (ret)
+        return ret;
+
+    ESP_LOGW(TAG, "D");
+    reg = read_reg(sensor->slv_addr, 0x3602);
+    if (ret)
+        return ret;
+    reg &= ~(0xf0);
+    ret = write_reg(sensor->slv_addr, 0x3602, reg);
+
+    ESP_LOGW(TAG, "E");
+    if (ret)
+        return ret;
+    ? set direct mode
+    reg = read_reg(sensor->slv_addr, 0x3602);
+
+    ESP_LOGW(TAG, "F");
+    if (ret)
+        return ret;
+    reg &= ~(0x07);
+    ret = write_reg(sensor->slv_addr, 0x3602, reg);
+
+    ESP_LOGW(TAG, "G");
+    if (ret)
+        return ret;
+
+    ESP_LOGW(TAG, "H");
+
+
+    reg = read_reg(sensor->slv_addr, ISP_CONTROL_03);
+    reg |= (enable << 1);
+    write_reg(sensor->slv_addr, ISP_CONTROL_03, reg);
+
+    vTaskDelay(100);
+    */
+    ov5640_af_start(sensor,0);
+
+    vTaskDelay(100);
+
+    while (ov5640_af_status(sensor, 5) == OV5640_AF_PENDING)
+        vTaskDelay(100);
+
+    // return ret;
+
+    return 0;
+// return write_reg(sensor->slv_addr, ISP_CONTROL_03, (enable << 1));
+
+// return write_reg_bits(sensor->slv_addr, ISP_CONTROL_043, 0x08, enable);
 }
 
 static int set_framesize(sensor_t *sensor, framesize_t framesize)
@@ -384,7 +667,7 @@ static int set_framesize(sensor_t *sensor, framesize_t framesize)
     framesize_t old_framesize = sensor->status.framesize;
     sensor->status.framesize = framesize;
 
-    if(framesize > FRAMESIZE_QSXGA){
+    if(framesize > FRAMESIZE_QSXGA) {
         ESP_LOGE(TAG, "Invalid framesize: %u", framesize);
         return -1;
     }
@@ -395,11 +678,11 @@ static int set_framesize(sensor_t *sensor, framesize_t framesize)
 
     sensor->status.binning = (w <= (settings.max_width / 2) && h <= (settings.max_height / 2));
     sensor->status.scale = !((w == settings.max_width && h == settings.max_height)
-        || (w == (settings.max_width / 2) && h == (settings.max_height / 2)));
+                             || (w == (settings.max_width / 2) && h == (settings.max_height / 2)));
 
     ret  = write_addr_reg(sensor->slv_addr, X_ADDR_ST_H, settings.start_x, settings.start_y)
-        || write_addr_reg(sensor->slv_addr, X_ADDR_END_H, settings.end_x, settings.end_y)
-        || write_addr_reg(sensor->slv_addr, X_OUTPUT_SIZE_H, w, h);
+           || write_addr_reg(sensor->slv_addr, X_ADDR_END_H, settings.end_x, settings.end_y)
+           || write_addr_reg(sensor->slv_addr, X_OUTPUT_SIZE_H, w, h);
 
     if (ret) {
         goto fail;
@@ -407,7 +690,7 @@ static int set_framesize(sensor_t *sensor, framesize_t framesize)
 
     if (!sensor->status.binning) {
         ret  = write_addr_reg(sensor->slv_addr, X_TOTAL_SIZE_H, settings.total_x, settings.total_y)
-            || write_addr_reg(sensor->slv_addr, X_OFFSET_H, settings.offset_x, settings.offset_y);
+               || write_addr_reg(sensor->slv_addr, X_OFFSET_H, settings.offset_x, settings.offset_y);
     } else {
         if (w > 920) {
             ret = write_addr_reg(sensor->slv_addr, X_TOTAL_SIZE_H, settings.total_x - 200, settings.total_y / 2);
@@ -434,9 +717,9 @@ static int set_framesize(sensor_t *sensor, framesize_t framesize)
     if (sensor->pixformat == PIXFORMAT_JPEG) {
         //10MHz PCLK
         uint8_t sys_mul = 200;
-        if(framesize < FRAMESIZE_QVGA || sensor->xclk_freq_hz == 16000000){
+        if(framesize < FRAMESIZE_QVGA || sensor->xclk_freq_hz == 16000000) {
             sys_mul = 160;
-        } else if(framesize < FRAMESIZE_XGA){
+        } else if(framesize < FRAMESIZE_XGA) {
             sys_mul = 180;
         }
         ret = set_pll(sensor, false, sys_mul, 4, 2, false, 2, true, 4);
@@ -639,7 +922,7 @@ static int set_agc_gain(sensor_t *sensor, int gain)
     //gain value is 6.4 bits float
     //in order to use the max range, we deduct 1/16
     int gainv = gain << 4;
-    if(gainv){
+    if(gainv) {
         gainv -= 1;
     }
 
@@ -682,8 +965,8 @@ static int set_aec_value(sensor_t *sensor, int value)
     }
 
     ret =  write_reg(sensor->slv_addr, 0x3500, (value >> 12) & 0x0F)
-        || write_reg(sensor->slv_addr, 0x3501, (value >> 4) & 0xFF)
-        || write_reg(sensor->slv_addr, 0x3502, (value << 4) & 0xF0);
+           || write_reg(sensor->slv_addr, 0x3501, (value >> 4) & 0xFF)
+           || write_reg(sensor->slv_addr, 0x3502, (value << 4) & 0xF0);
 
     if (ret == 0) {
         ESP_LOGD(TAG, "Set aec_value to: %d / %d", value, max_val);
@@ -715,11 +998,11 @@ static int set_ae_level(sensor_t *sensor, int level)
     }
 
     ret =  write_reg(sensor->slv_addr, 0x3a0f, level_high)
-        || write_reg(sensor->slv_addr, 0x3a10, level_low)
-        || write_reg(sensor->slv_addr, 0x3a1b, level_high)
-        || write_reg(sensor->slv_addr, 0x3a1e, level_low)
-        || write_reg(sensor->slv_addr, 0x3a11, fast_high)
-        || write_reg(sensor->slv_addr, 0x3a1f, fast_low);
+           || write_reg(sensor->slv_addr, 0x3a10, level_low)
+           || write_reg(sensor->slv_addr, 0x3a1b, level_high)
+           || write_reg(sensor->slv_addr, 0x3a1e, level_low)
+           || write_reg(sensor->slv_addr, 0x3a11, fast_high)
+           || write_reg(sensor->slv_addr, 0x3a1f, fast_low);
 
     if (ret == 0) {
         ESP_LOGD(TAG, "Set ae_level to: %d", level);
@@ -740,28 +1023,28 @@ static int set_wb_mode(sensor_t *sensor, int mode)
         return ret;
     }
     switch (mode) {
-        case 1://Sunny
-            ret  = write_reg16(sensor->slv_addr, 0x3400, 0x5e0) //AWB R GAIN
-                || write_reg16(sensor->slv_addr, 0x3402, 0x410) //AWB G GAIN
-                || write_reg16(sensor->slv_addr, 0x3404, 0x540);//AWB B GAIN
-            break;
-        case 2://Cloudy
-            ret  = write_reg16(sensor->slv_addr, 0x3400, 0x650) //AWB R GAIN
-                || write_reg16(sensor->slv_addr, 0x3402, 0x410) //AWB G GAIN
-                || write_reg16(sensor->slv_addr, 0x3404, 0x4f0);//AWB B GAIN
-            break;
-        case 3://Office
-            ret  = write_reg16(sensor->slv_addr, 0x3400, 0x520) //AWB R GAIN
-                || write_reg16(sensor->slv_addr, 0x3402, 0x410) //AWB G GAIN
-                || write_reg16(sensor->slv_addr, 0x3404, 0x660);//AWB B GAIN
-            break;
-        case 4://HOME
-            ret  = write_reg16(sensor->slv_addr, 0x3400, 0x420) //AWB R GAIN
-                || write_reg16(sensor->slv_addr, 0x3402, 0x3f0) //AWB G GAIN
-                || write_reg16(sensor->slv_addr, 0x3404, 0x710);//AWB B GAIN
-            break;
-        default://AUTO
-            break;
+    case 1://Sunny
+        ret  = write_reg16(sensor->slv_addr, 0x3400, 0x5e0) //AWB R GAIN
+               || write_reg16(sensor->slv_addr, 0x3402, 0x410) //AWB G GAIN
+               || write_reg16(sensor->slv_addr, 0x3404, 0x540);//AWB B GAIN
+        break;
+    case 2://Cloudy
+        ret  = write_reg16(sensor->slv_addr, 0x3400, 0x650) //AWB R GAIN
+               || write_reg16(sensor->slv_addr, 0x3402, 0x410) //AWB G GAIN
+               || write_reg16(sensor->slv_addr, 0x3404, 0x4f0);//AWB B GAIN
+        break;
+    case 3://Office
+        ret  = write_reg16(sensor->slv_addr, 0x3400, 0x520) //AWB R GAIN
+               || write_reg16(sensor->slv_addr, 0x3402, 0x410) //AWB G GAIN
+               || write_reg16(sensor->slv_addr, 0x3404, 0x660);//AWB B GAIN
+        break;
+    case 4://HOME
+        ret  = write_reg16(sensor->slv_addr, 0x3400, 0x420) //AWB R GAIN
+               || write_reg16(sensor->slv_addr, 0x3402, 0x3f0) //AWB G GAIN
+               || write_reg16(sensor->slv_addr, 0x3404, 0x710);//AWB B GAIN
+        break;
+    default://AUTO
+        break;
     }
 
     if (ret == 0) {
@@ -796,9 +1079,9 @@ static int set_special_effect(sensor_t *sensor, int effect)
 
     uint8_t * regs = (uint8_t *)sensor_special_effects[effect];
     ret =  write_reg(sensor->slv_addr, 0x5580, regs[0])
-        || write_reg(sensor->slv_addr, 0x5583, regs[1])
-        || write_reg(sensor->slv_addr, 0x5584, regs[2])
-        || write_reg(sensor->slv_addr, 0x5003, regs[3]);
+           || write_reg(sensor->slv_addr, 0x5583, regs[1])
+           || write_reg(sensor->slv_addr, 0x5584, regs[2])
+           || write_reg(sensor->slv_addr, 0x5003, regs[3]);
 
     if (ret == 0) {
         ESP_LOGD(TAG, "Set special_effect to: %d", effect);
@@ -814,29 +1097,29 @@ static int set_brightness(sensor_t *sensor, int level)
     bool negative = false;
 
     switch (level) {
-        case 3:
-            value = 0x30;
-            break;
-        case 2:
-            value = 0x20;
-            break;
-        case 1:
-            value = 0x10;
-            break;
-        case -1:
-            value = 0x10;
-            negative = true;
-            break;
-        case -2:
-            value = 0x20;
-            negative = true;
-            break;
-        case -3:
-            value = 0x30;
-            negative = true;
-            break;
-        default: // 0
-            break;
+    case 3:
+        value = 0x30;
+        break;
+    case 2:
+        value = 0x20;
+        break;
+    case 1:
+        value = 0x10;
+        break;
+    case -1:
+        value = 0x10;
+        negative = true;
+        break;
+    case -2:
+        value = 0x20;
+        negative = true;
+        break;
+    case -3:
+        value = 0x30;
+        negative = true;
+        break;
+    default: // 0
+        break;
     }
 
     ret = write_reg(sensor->slv_addr, 0x5587, value);
@@ -899,14 +1182,14 @@ static int set_sharpness(sensor_t *sensor, int level)
     uint8_t mt_offset_1 = mt_offset_2 + 1;
 
     ret = write_reg_bits(sensor->slv_addr, 0x5308, 0x40, false)//0x40 means auto
-        || write_reg(sensor->slv_addr, 0x5300, 0x10)
-        || write_reg(sensor->slv_addr, 0x5301, 0x10)
-        || write_reg(sensor->slv_addr, 0x5302, mt_offset_1)
-        || write_reg(sensor->slv_addr, 0x5303, mt_offset_2)
-        || write_reg(sensor->slv_addr, 0x5309, 0x10)
-        || write_reg(sensor->slv_addr, 0x530a, 0x10)
-        || write_reg(sensor->slv_addr, 0x530b, 0x04)
-        || write_reg(sensor->slv_addr, 0x530c, 0x06);
+          || write_reg(sensor->slv_addr, 0x5300, 0x10)
+          || write_reg(sensor->slv_addr, 0x5301, 0x10)
+          || write_reg(sensor->slv_addr, 0x5302, mt_offset_1)
+          || write_reg(sensor->slv_addr, 0x5303, mt_offset_2)
+          || write_reg(sensor->slv_addr, 0x5309, 0x10)
+          || write_reg(sensor->slv_addr, 0x530a, 0x10)
+          || write_reg(sensor->slv_addr, 0x530b, 0x04)
+          || write_reg(sensor->slv_addr, 0x530c, 0x06);
 
     if (ret == 0) {
         ESP_LOGD(TAG, "Set sharpness to: %d", level);
@@ -920,7 +1203,7 @@ static int set_gainceiling(sensor_t *sensor, gainceiling_t level)
     int ret = 0, l = (int)level;
 
     ret = write_reg(sensor->slv_addr, 0x3A18, (l >> 8) & 3)
-       || write_reg(sensor->slv_addr, 0x3A19, l & 0xFF);
+          || write_reg(sensor->slv_addr, 0x3A19, l & 0xFF);
 
     if (ret == 0) {
         ESP_LOGD(TAG, "Set gainceiling to: %d", l);
@@ -959,11 +1242,11 @@ static int set_denoise(sensor_t *sensor, int level)
 static int get_reg(sensor_t *sensor, int reg, int mask)
 {
     int ret = 0, ret2 = 0;
-    if(mask > 0xFF){
+    if(mask > 0xFF) {
         ret = read_reg16(sensor->slv_addr, reg);
-        if(ret >= 0 && mask > 0xFFFF){
+        if(ret >= 0 && mask > 0xFFFF) {
             ret2 = read_reg(sensor->slv_addr, reg+2);
-            if(ret2 >= 0){
+            if(ret2 >= 0) {
                 ret = (ret << 8) | ret2 ;
             } else {
                 ret = ret2;
@@ -972,7 +1255,7 @@ static int get_reg(sensor_t *sensor, int reg, int mask)
     } else {
         ret = read_reg(sensor->slv_addr, reg);
     }
-    if(ret > 0){
+    if(ret > 0) {
         ret &= mask;
     }
     return ret;
@@ -981,11 +1264,11 @@ static int get_reg(sensor_t *sensor, int reg, int mask)
 static int set_reg(sensor_t *sensor, int reg, int mask, int value)
 {
     int ret = 0, ret2 = 0;
-    if(mask > 0xFF){
+    if(mask > 0xFF) {
         ret = read_reg16(sensor->slv_addr, reg);
-        if(ret >= 0 && mask > 0xFFFF){
+        if(ret >= 0 && mask > 0xFFFF) {
             ret2 = read_reg(sensor->slv_addr, reg+2);
-            if(ret2 >= 0){
+            if(ret2 >= 0) {
                 ret = (ret << 8) | ret2 ;
             } else {
                 ret = ret2;
@@ -994,16 +1277,16 @@ static int set_reg(sensor_t *sensor, int reg, int mask, int value)
     } else {
         ret = read_reg(sensor->slv_addr, reg);
     }
-    if(ret < 0){
+    if(ret < 0) {
         return ret;
     }
     value = (ret & ~mask) | (value & mask);
-    if(mask > 0xFFFF){
+    if(mask > 0xFFFF) {
         ret = write_reg16(sensor->slv_addr, reg, value >> 8);
-        if(ret >= 0){
+        if(ret >= 0) {
             ret = write_reg(sensor->slv_addr, reg+2, value & 0xFF);
         }
-    } else if(mask > 0xFF){
+    } else if(mask > 0xFF) {
         ret = write_reg16(sensor->slv_addr, reg, value);
     } else {
         ret = write_reg(sensor->slv_addr, reg, value);
@@ -1015,12 +1298,12 @@ static int set_res_raw(sensor_t *sensor, int startX, int startY, int endX, int e
 {
     int ret = 0;
     ret  = write_addr_reg(sensor->slv_addr, X_ADDR_ST_H, startX, startY)
-        || write_addr_reg(sensor->slv_addr, X_ADDR_END_H, endX, endY)
-        || write_addr_reg(sensor->slv_addr, X_OFFSET_H, offsetX, offsetY)
-        || write_addr_reg(sensor->slv_addr, X_TOTAL_SIZE_H, totalX, totalY)
-        || write_addr_reg(sensor->slv_addr, X_OUTPUT_SIZE_H, outputX, outputY)
-        || write_reg_bits(sensor->slv_addr, ISP_CONTROL_01, 0x20, scale);
-    if(!ret){
+           || write_addr_reg(sensor->slv_addr, X_ADDR_END_H, endX, endY)
+           || write_addr_reg(sensor->slv_addr, X_OFFSET_H, offsetX, offsetY)
+           || write_addr_reg(sensor->slv_addr, X_TOTAL_SIZE_H, totalX, totalY)
+           || write_addr_reg(sensor->slv_addr, X_OUTPUT_SIZE_H, outputX, outputY)
+           || write_reg_bits(sensor->slv_addr, ISP_CONTROL_01, 0x20, scale);
+    if(!ret) {
         sensor->status.scale = scale;
         sensor->status.binning = binning;
         ret = set_image_options(sensor);
@@ -1126,5 +1409,6 @@ int ov5640_init(sensor_t *sensor)
     sensor->set_res_raw = set_res_raw;
     sensor->set_pll = _set_pll;
     sensor->set_xclk = set_xclk;
+    sensor->set_afw = set_afw;
     return 0;
 }
