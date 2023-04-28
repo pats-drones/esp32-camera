@@ -1296,7 +1296,56 @@ static int set_reg(sensor_t *sensor, int reg, int mask, int value)
 
 static int set_res_raw(sensor_t *sensor, int startX, int startY, int endX, int endY, int offsetX, int offsetY, int totalX, int totalY, int outputX, int outputY, bool scale, bool binning)
 {
+// scale = 1;
+    // printf("set_res_raw %d %d %d %d %d %d %d %d %d %d  %d %d \n", startX, startY, endX, endY, offsetX, offsetY, totalX, totalY, outputX, outputY, scale, binning);
     int ret = 0;
+
+    // int dx = 0;
+    // int dy = 0;
+    // static int i = 0;
+    // i++;
+    // i %= 5;
+
+    // switch (i) {
+    //     case 0:
+    //         dx = 0;
+    //         dy = 0;
+    //     break;
+    //     case 1:
+    //         dx = 1024 + 512 + 64;// + 128;
+    //         dy = 0;
+    //     break;
+    //     case 2:
+    //         dx = 0;
+    //         dy = 1024 + 256 - 16;
+    //     break;
+    //     case 3:
+    //         dx = 1024 + 512 + 64;// + 128;
+    //         dy = 1024 + 256 - 16;
+    //     break;
+    //     case 4:
+    //         // dx = 1027;
+    //         // dy = 576;
+    //         dx = 1024;
+    //         dy = 512 + 256;
+    //     break;
+    // }
+
+    // // dx = 512 * (i % 2);
+    // // dy = 512 * ((i / 2) % 2);
+    // //printf("set_res_raw %d %d", dx, dy);
+    // // int w = 512;
+    // // int h = 384;
+    // int w = 256;
+    // int h = 192;
+    // ret  = write_addr_reg(sensor->slv_addr, X_ADDR_ST_H, 0, 0)
+    //        || write_addr_reg(sensor->slv_addr, X_ADDR_END_H, w+dx, h+dy)
+    //        || write_addr_reg(sensor->slv_addr, X_OFFSET_H, dx, dy)
+    //        || write_addr_reg(sensor->slv_addr, X_TOTAL_SIZE_H, 2592, 1944)
+    //        || write_addr_reg(sensor->slv_addr, X_OUTPUT_SIZE_H, w, h)
+    //        || write_reg_bits(sensor->slv_addr, ISP_CONTROL_01, 0x20, scale);
+
+           // 2592 1944
     ret  = write_addr_reg(sensor->slv_addr, X_ADDR_ST_H, startX, startY)
            || write_addr_reg(sensor->slv_addr, X_ADDR_END_H, endX, endY)
            || write_addr_reg(sensor->slv_addr, X_OFFSET_H, offsetX, offsetY)

@@ -208,7 +208,7 @@ esp_err_t esp_camera_load_from_nvs(const char *key);
 
 
 
-static int esp_set_afc_window(sensor_t *sensor, bool set_window);
+// static int esp_set_afc_window(sensor_t *sensor, bool set_window);
 
 #ifdef __cplusplus
 }

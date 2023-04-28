@@ -128,7 +128,7 @@ static esp_err_t init_camera()
     esp_err_t err = esp_camera_init(&camera_config);
     if (err != ESP_OK)
     {
-        ESP_LOGE(TAG, "Camera Init Failed");
+        //ESP_LOGE(TAG, "Camera Init Failed");
         return err;
     }
 
@@ -143,11 +143,11 @@ void app_main()
 
     while (1)
     {
-        ESP_LOGI(TAG, "Taking picture...");
+        //ESP_LOGI(TAG, "Taking picture...");
         camera_fb_t *pic = esp_camera_fb_get();
 
         // use pic->buf to access the image
-        ESP_LOGI(TAG, "Picture taken! Its size was: %zu bytes", pic->len);
+        //ESP_LOGI(TAG, "Picture taken! Its size was: %zu bytes", pic->len);
         esp_camera_fb_return(pic);
 
         vTaskDelay(5000 / portTICK_RATE_MS);
